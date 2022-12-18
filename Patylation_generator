@@ -1,0 +1,79 @@
+import numpy as np
+import pandas as pd
+import math
+from ipywidgets import FloatProgress
+import time
+import random
+from Bio.Seq import Seq
+from Bio.Alphabet import generic_dna
+
+def patylation_sequence_generator(AA_length):
+
+    PAT_DNA=[]
+    index=2
+    for _ in range(AA_length):
+        PAT_DNA+= random.choices(['GCA','GCT','GCC','ACA','ACT','ACC'])
+    while index < AA_length:
+        PAT_DNA[index]=random.choice(['CCA','CCT'])
+        index += random.choice([2,3])
+
+    PAT_DNA=''.join(PAT_DNA)
+    index=0
+    PAT_DNA = Seq(PAT_DNA, generic_dna)
+    return (PAT_DNA, PAT_DNA.translate())
+    
+def nucleotide_repeat_score_numerator(seq, repeat_length):
+        fragments=[]
+        for i in range(len(seq)-(repeat_length-1)):
+            fragments.append(seq[i:i+repeat_length])
+        fragments=set(fragments)
+        fragments=list(fragments)
+        frequency=[]
+        for j in range(len(fragments)):
+            frequency.append(seq.count(fragments[j]))
+        df = pd.DataFrame({'fragments': fragments, 'frequency': frequency})
+        df=df[df['frequency']>1]
+        return df
+        
+def maximum_repeat_length(seq):
+    total_list=[]
+    fragment_length_list=[]
+    for i in range(4,len(seq)):
+        fragment_length_list.append(i)
+        freq_df=nucleotide_repeat_score_numerator(seq, i)
+        total=freq_df.sum()[1]
+        total_list.append(total)
+    df = pd.DataFrame({'fragment length': fragment_length_list, 'frequency': total_list})
+    df=df.dropna()
+    return df 
+    
+def patylation_list_generator (number_of_sequences, AA_length):
+    progress_bar = FloatProgress(max = number_of_sequences)
+    display(progress_bar)
+    PAT_list=[]
+    for _ in range(number_of_sequences):
+        seq_gen_result=patylation_sequence_generator(AA_length)
+        len_score_df=maximum_repeat_length(seq_gen_result[0])
+        PAT_values=(seq_gen_result[0],''.join(seq_gen_result[1][-3:]),len(len_score_df)+3,len_score_df.sum()[1])
+        PAT_list.append(PAT_values)
+        progress_bar.value = _+1
+
+    
+    df=pd.DataFrame(PAT_list)
+    df.columns=['DNA', 'AA','len', 'score']
+
+    
+
+    DNA_list=[]
+    for i in range(1,len(df)+1):
+        DNA_list.append('>%d '%i + str(df['DNA'][i-1] ))
+    return DNA_list, df
+    
+t0 = time.time()
+out=patylation_list_generator(1000, 200)
+t1 = time.time()
+total = t1-t0
+print('Run time: %f seconds' %total)
+out
+    
+    
